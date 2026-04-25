@@ -11,7 +11,8 @@
 <!-- Firebase -->
 <script type="module">
   import { initializeApp }               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+           sendPasswordResetEmail, updateProfile, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, query, where, setDoc, getDoc }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -26,28 +27,70 @@
     storageBucket: "planflow-cd46c.firebasestorage.app",
     messagingSenderId: "844939295396",
     appId: "1:844939295396:web:d278e266b697b622db4431"
+
   };
   // ══════════════════════════════════════════════════
 
-  const app      = initializeApp(firebaseConfig);
-  const auth     = getAuth(app);
-  const db       = getFirestore(app);
-  const provider = new GoogleAuthProvider();
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
   let unsubTasks = null, unsubCats = null, unsubUsers = null;
 
   // ══════════════════════════════════════════════════
-  //  ADMIN EMAIL — your Gmail goes here
+  //  ADMIN EMAIL — your email goes here
   //  Only this email can approve/reject other users
   // ══════════════════════════════════════════════════
   const ADMIN_EMAIL = "makarovskastefania@gmail.com";
   // ══════════════════════════════════════════════════
 
-  // ── AUTH ──────────────────────────────────────────
-  window.signInWithGoogle = async () => {
-    try { await signInWithPopup(auth, provider); }
-    catch(e) { showToast('Sign-in failed: ' + e.message, 'error'); }
+  // ── AUTH: SIGN UP ─────────────────────────────────
+  window.signUp = async () => {
+    const name  = document.getElementById('authName').value.trim();
+    const email = document.getElementById('authEmail').value.trim();
+    const pass  = document.getElementById('authPass').value;
+    const pass2 = document.getElementById('authPass2').value;
+    if(!name)           { showAuthError('Please enter your full name'); return; }
+    if(!email)          { showAuthError('Please enter your email'); return; }
+    if(pass.length < 6) { showAuthError('Password must be at least 6 characters'); return; }
+    if(pass !== pass2)  { showAuthError('Passwords do not match'); return; }
+    setAuthLoading(true);
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      await updateProfile(cred.user, { displayName: name });
+    } catch(e) {
+      showAuthError(friendlyError(e.code));
+    }
+    setAuthLoading(false);
   };
 
+  // ── AUTH: SIGN IN ─────────────────────────────────
+  window.signIn = async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass  = document.getElementById('loginPass').value;
+    if(!email) { showAuthError('Please enter your email'); return; }
+    if(!pass)  { showAuthError('Please enter your password'); return; }
+    setAuthLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch(e) {
+      showAuthError(friendlyError(e.code));
+    }
+    setAuthLoading(false);
+  };
+
+  // ── AUTH: RESET PASSWORD ──────────────────────────
+  window.resetPassword = async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    if(!email) { showAuthError('Enter your email above first'); return; }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      showAuthError('✅ Reset link sent — check your inbox', true);
+    } catch(e) {
+      showAuthError(friendlyError(e.code));
+    }
+  };
+
+  // ── AUTH: SIGN OUT ────────────────────────────────
   window.signOutUser = async () => {
     if (unsubTasks) unsubTasks();
     if (unsubCats)  unsubCats();
@@ -56,6 +99,33 @@
     window.tasks = []; window.categories = [];
     showLogin();
   };
+
+  function friendlyError(code) {
+    const map = {
+      'auth/email-already-in-use':    'This email is already registered. Try signing in.',
+      'auth/invalid-email':           'Please enter a valid email address.',
+      'auth/wrong-password':          'Incorrect password. Try again or reset it.',
+      'auth/user-not-found':          'No account found with this email.',
+      'auth/too-many-requests':       'Too many attempts. Please wait a moment.',
+      'auth/weak-password':           'Password must be at least 6 characters.',
+      'auth/network-request-failed':  'Network error. Check your connection.',
+      'auth/invalid-credential':      'Incorrect email or password.',
+    };
+    return map[code] || 'Something went wrong. Please try again.';
+  }
+
+  function showAuthError(msg, isSuccess=false) {
+    const el = document.getElementById('authError');
+    if(!el) return;
+    el.textContent = msg;
+    el.style.color = isSuccess ? 'var(--accent)' : 'var(--danger)';
+    el.style.display = 'block';
+  }
+
+  function setAuthLoading(on) {
+    const btns = document.querySelectorAll('.auth-submit-btn');
+    btns.forEach(b=>{ b.disabled=on; b.textContent=on?'Please wait…':b.dataset.label; });
+  }
 
   onAuthStateChanged(auth, async user => {
     if (user) {
@@ -68,9 +138,8 @@
       if (!profileSnap.exists()) {
         // New user — create profile, auto-approve if admin
         await setDoc(profileRef, {
-          name:      user.displayName,
+          name:      user.displayName || user.email,
           email:     user.email,
-          photoURL:  user.photoURL || '',
           status:    isAdmin ? 'approved' : 'pending',
           isAdmin:   isAdmin,
           createdAt: Date.now()
@@ -780,6 +849,18 @@ input, select, textarea { font-family:inherit; }
   /* Toast moves up above nav */
   .toast { bottom:80px; }
 }
+
+/* ── AUTH TABS ───────────────────────────────────── */
+.auth-tabs { display:flex; gap:0; margin-bottom:20px; border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; }
+.auth-tab { flex:1; padding:10px; background:none; border:none; color:var(--muted); font-family:'Cabinet Grotesk',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:all .2s; }
+.auth-tab.active { background:var(--surface2); color:var(--text); }
+.auth-error { display:none; font-size:12px; padding:10px 12px; background:var(--danger-dim); border:1px solid rgba(248,113,113,.3); border-radius:var(--radius-sm); color:var(--danger); line-height:1.5; margin-bottom:4px; }
+.auth-forgot { background:none; border:none; color:var(--muted); font-size:11px; text-decoration:underline; cursor:pointer; text-align:right; display:block; width:100%; margin-top:-4px; }
+.auth-forgot:hover { color:var(--text); }
+.auth-submit-btn { background:var(--accent); color:#0a1628; border:none; padding:12px; border-radius:var(--radius-sm); font-family:'Cabinet Grotesk',sans-serif; font-weight:800; font-size:14px; cursor:pointer; transition:all .2s; width:100%; margin-top:4px; }
+.auth-submit-btn:hover { background:#86efac; transform:translateY(-1px); }
+.auth-submit-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.auth-divider { text-align:center; font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:.5px; margin:4px 0; }
 </style>
 </head>
 <body>
@@ -799,7 +880,7 @@ input, select, textarea { font-family:inherit; }
           <div class="feature-item"><span class="feature-icon">🎨</span> Custom categories with colors & icons</div>
           <div class="feature-item"><span class="feature-icon">☁️</span> Real-time sync across all devices</div>
           <div class="feature-item"><span class="feature-icon">📊</span> Daily progress tracking & stats</div>
-          <div class="feature-item"><span class="feature-icon">🔒</span> Private to your Google account only</div>
+          <div class="feature-item"><span class="feature-icon">🔒</span> Private and secure account</div>
           <div class="feature-item"><span class="feature-icon">📅</span> Weekly timeline view</div>
         </div>
       </div>
@@ -808,14 +889,56 @@ input, select, textarea { font-family:inherit; }
     <div class="login-form-side">
       <div>
         <div class="logo">PlanFlow</div>
-        <h1>Sign in to<br>your <span>planner</span></h1>
+        <h1>Welcome to<br><span>PlanFlow</span></h1>
       </div>
-      <p class="sub">Your data is encrypted and private — only accessible with your Google account.</p>
-      <button class="btn-google" onclick="signInWithGoogle()">
-        <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 19 12 24 12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.4 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.3 35.3 26.8 36 24 36c-5.3 0-9.7-3.4-11.3-8H6.3C9.7 35.5 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.3 4.1-4.2 5.5l6.2 5.2C37 39.3 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
-        Continue with Google
-      </button>
-      <p class="login-legal">By signing in you agree to keep your data awesome. We store only your tasks and categories — nothing else. Ever.</p>
+
+      <!-- TABS -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabSignIn" onclick="showAuthTab('signin')">Sign In</button>
+        <button class="auth-tab" id="tabSignUp" onclick="showAuthTab('signup')">Create Account</button>
+      </div>
+
+      <!-- ERROR -->
+      <div class="auth-error" id="authError"></div>
+
+      <!-- SIGN IN -->
+      <div id="formSignIn" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="form-group">
+          <div class="form-label">Email</div>
+          <input class="form-input" id="loginEmail" type="email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')signIn()">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Password</div>
+          <input class="form-input" id="loginPass" type="password" placeholder="Your password" onkeydown="if(event.key==='Enter')signIn()">
+        </div>
+        <button class="auth-forgot" onclick="resetPassword()">Forgot password?</button>
+        <button class="auth-submit-btn" data-label="Sign In" onclick="signIn()">Sign In</button>
+        <div class="auth-divider">No account? <span style="cursor:pointer;text-decoration:underline;color:var(--text);" onclick="showAuthTab('signup')">Create one →</span></div>
+      </div>
+
+      <!-- SIGN UP -->
+      <div id="formSignUp" style="display:none;flex-direction:column;gap:10px;">
+        <div class="form-group">
+          <div class="form-label">Full Name</div>
+          <input class="form-input" id="authName" type="text" placeholder="Your full name" onkeydown="if(event.key==='Enter')signUp()">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Email</div>
+          <input class="form-input" id="authEmail" type="email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')signUp()">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Password</div>
+          <input class="form-input" id="authPass" type="password" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter')signUp()">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Confirm Password</div>
+          <input class="form-input" id="authPass2" type="password" placeholder="Repeat password" onkeydown="if(event.key==='Enter')signUp()">
+        </div>
+        <button class="auth-submit-btn" data-label="Create Account" onclick="signUp()">Create Account</button>
+        <div class="auth-divider">Have an account? <span style="cursor:pointer;text-decoration:underline;color:var(--text);" onclick="showAuthTab('signin')">Sign in →</span></div>
+      </div>
+
+      <p class="login-legal" style="margin-top:10px;">Your data is private and encrypted. We only store your tasks and categories — nothing else.</p>
     </div>
   </div>
 </div>
@@ -1318,6 +1441,17 @@ function pickEmoji(el, emoji) {
   selectedEmoji = emoji;
   document.querySelectorAll('.emoji-opt').forEach(s=>s.classList.remove('selected'));
   el.classList.add('selected');
+}
+
+// ── AUTH TAB SWITCHING ────────────────────────────────────────────
+function showAuthTab(tab) {
+  const isSignIn = tab === 'signin';
+  document.getElementById('formSignIn').style.display = isSignIn ? 'flex' : 'none';
+  document.getElementById('formSignUp').style.display = isSignIn ? 'none' : 'flex';
+  document.getElementById('tabSignIn').classList.toggle('active', isSignIn);
+  document.getElementById('tabSignUp').classList.toggle('active', !isSignIn);
+  const err = document.getElementById('authError');
+  if(err) { err.style.display='none'; err.textContent=''; }
 }
 
 // ── VIEW SWITCHING ─────────────────────────────────────────────────
