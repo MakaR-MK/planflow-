@@ -2415,9 +2415,6 @@ function switchCalView(v){
   document.getElementById('calVbtnYear').classList.toggle('active',v==='year');
   renderCalendar();
 }
-// Patch switchView to init calendar
-const _origSwitchView=switchView;
-function switchView(view){_origSwitchView(view);if(view==='calendar')initCalendar();}
 </script>
 </body>
 </html>
