@@ -700,12 +700,85 @@ input, select, textarea { font-family:inherit; }
 .toast.success { border-color:var(--accent); }
 .toast.error { border-color:var(--danger); }
 
-/* ── RESPONSIVE ─────────────────────────────────── */
+/* ── RESPONSIVE / MOBILE ─────────────────────────── */
+
+/* Mobile bottom nav bar */
+.mobile-nav {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0; z-index:150;
+  background:rgba(8,9,13,0.96);
+  backdrop-filter:blur(16px);
+  border-top:1px solid var(--border);
+  padding:8px 0 max(8px, env(safe-area-inset-bottom));
+  grid-template-columns:repeat(5,1fr);
+}
+.mob-nav-btn {
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  background:none; border:none; color:var(--muted);
+  padding:6px 4px; border-radius:10px; transition:all .2s;
+  font-family:'Cabinet Grotesk',sans-serif;
+}
+.mob-nav-btn .mob-icon { font-size:20px; line-height:1; }
+.mob-nav-btn .mob-label { font-family:'DM Mono',monospace; font-size:8px; letter-spacing:.5px; text-transform:uppercase; }
+.mob-nav-btn.active { color:var(--accent); }
+.mob-nav-btn.active .mob-icon { transform:scale(1.1); }
+
+/* Mobile panel pages — hidden by default, shown on mobile */
+.mob-panel { display:none; }
+
 @media(max-width:768px) {
-  .topbar { padding:0 16px; }
+  /* Show bottom nav, hide desktop nav */
+  .mobile-nav { display:grid; }
   .nav-tabs { display:none; }
-  .main-area { padding:16px; }
-  .cats-view, .settings-view { padding:16px; }
+  .topbar { padding:0 14px; height:50px; }
+  .sync-badge { display:none; }
+  .brand-name { font-size:14px; }
+  .btn-so { font-size:8px; padding:4px 8px; }
+  .user-name-display { display:none; }
+
+  /* Add padding to all views so content clears bottom nav */
+  .planner-layout,
+  .cats-view,
+  .settings-view { padding-bottom:80px; }
+
+  /* On mobile the desktop sidebar is hidden */
+  .planner-layout { grid-template-columns:1fr; }
+  .sidebar { display:none; }
+
+  /* Main area fills full width */
+  .main-area { padding:12px; }
+  .cats-view, .settings-view { padding:14px 14px 80px; }
+
+  /* Mobile panel pages */
+  .mob-panel { display:block; }
+
+  /* Mobile schedule page uses full screen */
+  #mob-view-schedule { padding:12px 12px 80px; }
+  #mob-view-add      { padding:12px 12px 80px; }
+  #mob-view-week     { padding:12px 12px 80px; }
+
+  /* Mobile form card */
+  .mob-form-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:16px;
+  }
+  .mob-section-title {
+    font-size:18px; font-weight:800; margin-bottom:16px; letter-spacing:-.3px;
+  }
+
+  /* Mobile week grid card */
+  .mob-week-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:16px; margin-bottom:14px;
+  }
+
+  /* Mobile stats row */
+  .mob-stats {
+    display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px;
+  }
+
+  /* Toast moves up above nav */
+  .toast { bottom:80px; }
 }
 </style>
 </head>
@@ -792,6 +865,130 @@ input, select, textarea { font-family:inherit; }
         <span id="userNameDisplay" class="user-name-display"></span>
       </div>
       <button class="btn-so" onclick="signOutUser()">Sign out</button>
+    </div>
+  </div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="mobile-nav">
+    <button class="mob-nav-btn active" id="mobnav-schedule" onclick="switchMobileView('schedule')">
+      <span class="mob-icon">📅</span>
+      <span class="mob-label">Schedule</span>
+    </button>
+    <button class="mob-nav-btn" id="mobnav-week" onclick="switchMobileView('week')">
+      <span class="mob-icon">🗓</span>
+      <span class="mob-label">Week</span>
+    </button>
+    <button class="mob-nav-btn" id="mobnav-add" onclick="switchMobileView('add')">
+      <span class="mob-icon">➕</span>
+      <span class="mob-label">Add</span>
+    </button>
+    <button class="mob-nav-btn" id="mobnav-categories" onclick="switchView('categories');setMobActive('categories')">
+      <span class="mob-icon">🎨</span>
+      <span class="mob-label">Categories</span>
+    </button>
+    <button class="mob-nav-btn" id="mobnav-settings" onclick="switchView('settings');setMobActive('settings')">
+      <span class="mob-icon">⚙️</span>
+      <span class="mob-label">Settings</span>
+    </button>
+  </nav>
+
+  <!-- MOBILE SCHEDULE PAGE -->
+  <div id="mob-view-schedule" class="mob-panel view active" style="display:none;">
+    <div id="mob-schedule-area" style="padding:12px 12px 80px;">
+      <div class="main-header" style="margin-bottom:12px;">
+        <div class="main-title" id="mobMainTitle">Today's Schedule</div>
+        <div class="view-btns">
+          <button class="vbtn active" id="mobVbtnTimeline" onclick="switchTimelineView('timeline')">Timeline</button>
+          <button class="vbtn" id="mobVbtnList" onclick="switchTimelineView('list')">List</button>
+        </div>
+      </div>
+      <div class="quote-strip" style="margin-bottom:12px;">
+        <p class="quote-text" id="mobQuoteText"></p>
+        <button class="quote-refresh" onclick="nextQuote()">↻</button>
+      </div>
+      <div class="timeline-card">
+        <div id="mobTimelineContainer"></div>
+        <div id="mobListContainer" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE WEEK PAGE -->
+  <div id="mob-view-week" class="mob-panel view" style="display:none;">
+    <div style="padding:12px 12px 80px;">
+      <div class="mob-section-title">This Week</div>
+      <div class="mob-week-card">
+        <div class="sb-label" id="mobWeekRangeLabel" style="margin-bottom:10px;">Week</div>
+        <div class="week-strip" id="mobWeekStrip"></div>
+      </div>
+      <div class="mob-stats">
+        <div class="stat-card"><div class="stat-val" id="mobStatTotal">0</div><div class="stat-lbl">Tasks</div></div>
+        <div class="stat-card"><div class="stat-val" id="mobStatDone" style="color:var(--accent)">0</div><div class="stat-lbl">Done</div></div>
+        <div class="stat-card"><div class="stat-val" id="mobStatHrs">—</div><div class="stat-lbl">Hours</div></div>
+        <div class="stat-card"><div class="stat-val" id="mobStatTop" style="font-size:20px;">—</div><div class="stat-lbl">Top Cat</div></div>
+      </div>
+      <div class="mob-week-card">
+        <div class="progress-top"><span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);">Daily Progress</span><span id="mobPctLbl" style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);">0%</span></div>
+        <div class="pbar" style="margin-top:6px;"><div class="pfill" id="mobPfill" style="width:0%"></div></div>
+      </div>
+      <div class="mob-section-title" style="margin-top:4px;">Filter Categories</div>
+      <div class="cat-filters" id="mobCatFilters" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px;"></div>
+    </div>
+  </div>
+
+  <!-- MOBILE ADD TASK PAGE -->
+  <div id="mob-view-add" class="mob-panel view" style="display:none;">
+    <div style="padding:12px 12px 80px;">
+      <div class="mob-section-title">Add Activity</div>
+      <div class="mob-form-card">
+        <div class="form-group">
+          <div class="form-label">Activity Name</div>
+          <input class="form-input" id="mobFTitle" type="text" placeholder="e.g. Study ML fundamentals…">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <div class="form-label">Day</div>
+            <select class="form-select" id="mobFDay">
+              <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
+              <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="form-label">Time</div>
+            <input class="form-input" id="mobFTime" type="time" value="09:00">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <div class="form-label">Duration</div>
+            <select class="form-select" id="mobFDuration">
+              <option value="15">15 min</option><option value="30">30 min</option>
+              <option value="45">45 min</option><option value="60" selected>1 hour</option>
+              <option value="90">1.5 hrs</option><option value="120">2 hours</option>
+              <option value="180">3 hours</option><option value="240">4 hours</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="form-label">Priority</div>
+            <select class="form-select" id="mobFPriority">
+              <option value="high">🔴 High</option>
+              <option value="medium" selected>🟡 Medium</option>
+              <option value="low">⚪ Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Category</div>
+          <select class="form-select" id="mobFCategory">
+            <option value="">— Select category —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Note (optional)</div>
+          <input class="form-input" id="mobFNote" type="text" placeholder="Any extra details…">
+        </div>
+        <button class="btn-primary" id="mobBtnAddTask" onclick="addTaskMobile()" style="margin-top:4px;">+ Add to Schedule</button>
+      </div>
     </div>
   </div>
 
@@ -1019,6 +1216,37 @@ input, select, textarea { font-family:inherit; }
   </div>
 
 </div><!-- /appScreen -->
+
+<!-- EDIT CATEGORY MODAL -->
+<div class="modal-overlay" id="editCatModal">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-title">Edit Category</div>
+    <div class="modal-sub">Update the name, description, color or icon.</div>
+    <input type="hidden" id="editCatId">
+    <div class="form-row" style="margin-bottom:12px;">
+      <div class="form-group">
+        <div class="form-label">Category Name</div>
+        <input class="form-input" id="editCatName" type="text" placeholder="Category name">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Description</div>
+        <input class="form-input" id="editCatDesc" type="text" placeholder="Short description">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <div class="form-label">Color</div>
+      <div class="color-picker-row" id="editColorPicker"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:4px;">
+      <div class="form-label">Icon</div>
+      <div class="emoji-picker-row" id="editEmojiPicker" style="max-height:100px;overflow-y:auto;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeEditCat()">Cancel</button>
+      <button class="btn-primary" id="btnSaveEditCat" onclick="saveEditCat()">Save Changes</button>
+    </div>
+  </div>
+</div>
 
 <!-- DELETE CONFIRM MODAL -->
 <div class="modal-overlay" id="deleteModal">
@@ -1269,6 +1497,7 @@ function renderCatsPage() {
       <div class="cat-card-top">
         <div class="cat-emoji">${c.emoji}</div>
         <div class="cat-card-actions">
+          <button class="cat-action-btn" onclick="openEditCat('${c.id}')">Edit</button>
           <button class="cat-action-btn del" onclick="deleteCat('${c.id}')">Delete</button>
         </div>
       </div>
@@ -1282,6 +1511,70 @@ function renderCatsPage() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ── EDIT CATEGORY ─────────────────────────────────────────────────
+function openEditCat(id) {
+  const c = window.categories.find(c=>c.id===id);
+  if(!c) return;
+
+  // Populate the edit modal fields
+  document.getElementById('editCatId').value    = id;
+  document.getElementById('editCatName').value  = c.name;
+  document.getElementById('editCatDesc').value  = c.desc || '';
+
+  // Build color picker for edit modal
+  const cp = document.getElementById('editColorPicker');
+  cp.innerHTML = PALETTE.map(col=>
+    `<div class="color-swatch ${col===c.color?'selected':''}" style="background:${col}" onclick="pickEditColor(this,'${col}')"></div>`
+  ).join('');
+  selectedEditColor = c.color;
+
+  // Build emoji picker for edit modal
+  const ep = document.getElementById('editEmojiPicker');
+  ep.innerHTML = EMOJIS.map(em=>
+    `<div class="emoji-opt ${em===c.emoji?'selected':''}" onclick="pickEditEmoji(this,'${em}')">${em}</div>`
+  ).join('');
+  selectedEditEmoji = c.emoji;
+
+  document.getElementById('editCatModal').classList.add('open');
+}
+
+let selectedEditColor = PALETTE[0];
+let selectedEditEmoji = EMOJIS[0];
+
+function pickEditColor(el, color) {
+  selectedEditColor = color;
+  document.querySelectorAll('#editColorPicker .color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function pickEditEmoji(el, emoji) {
+  selectedEditEmoji = emoji;
+  document.querySelectorAll('#editEmojiPicker .emoji-opt').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function closeEditCat() {
+  document.getElementById('editCatModal').classList.remove('open');
+}
+
+async function saveEditCat() {
+  const id   = document.getElementById('editCatId').value;
+  const name = document.getElementById('editCatName').value.trim();
+  if(!name) { showToast('Category name cannot be empty','error'); return; }
+  const btn = document.getElementById('btnSaveEditCat');
+  btn.disabled=true; btn.textContent='Saving…';
+  try {
+    await window.dbUpdateCategory(id, {
+      name,
+      desc:  document.getElementById('editCatDesc').value.trim(),
+      color: selectedEditColor,
+      emoji: selectedEditEmoji
+    });
+    showToast('Category updated ✓','success');
+    closeEditCat();
+    renderCatsPage();
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+  btn.disabled=false; btn.textContent='Save Changes';
 }
 
 async function addCategory() {
@@ -1458,9 +1751,193 @@ function showToast(msg, type='success') {
   setTimeout(()=>t.classList.remove('show'),2600);
 }
 
-// ── KEYBOARD ──────────────────────────────────────────────────────
-document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&document.activeElement.id==='fTitle') addTask(); });
+// ── MOBILE NAV ────────────────────────────────────────────────────
+const MOB_PANELS = ['schedule','week','add'];
+
+function setMobActive(name) {
+  document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('active'));
+  const btn = document.getElementById('mobnav-'+name);
+  if(btn) btn.classList.add('active');
+}
+
+function switchMobileView(panel) {
+  // Hide all desktop views and mobile panels
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.mob-panel').forEach(p=>{ p.style.display='none'; p.classList.remove('active'); });
+
+  // Show selected mobile panel
+  const el = document.getElementById('mob-view-'+panel);
+  if(el) { el.style.display='block'; el.classList.add('active'); }
+
+  setMobActive(panel);
+
+  if(panel==='schedule') renderMobileSchedule();
+  if(panel==='week')     renderMobileWeek();
+  if(panel==='add')      syncMobileForm();
+}
+
+function isMobile() { return window.innerWidth <= 768; }
+
+function renderMobileSchedule() {
+  const dts  = getMobileDayTasks();
+  const now  = new Date();
+  // Timeline
+  let html = '<div class="timeline">';
+  for(const h of HOURS){
+    const isCur  = selectedDay===now.getDay()&&now.getHours()===h;
+    const hTasks = dts.filter(t=>parseInt(t.time.split(':')[0])===h);
+    const label  = h===0?'12am':h<12?`${h}am`:h===12?'12pm':`${h-12}pm`;
+    html+=`<div class="time-row"><div class="time-label">${label}</div><div class="time-slot${isCur?' is-now':''}">${hTasks.map(taskHTML).join('')}${!hTasks.length?'<div class="empty-hour">free</div>':''}</div></div>`;
+  }
+  html+='</div>';
+  const tc = document.getElementById('mobTimelineContainer');
+  const lc = document.getElementById('mobListContainer');
+  if(tc) tc.innerHTML = dts.length ? html : `<div class="empty-day"><div class="ei">📅</div><p>No activities for ${DAY_FULL[selectedDay]}.<br>Tap + to add one.</p></div>`;
+  if(lc) lc.innerHTML = dts.length ? `<div class="list-view">${dts.map(taskHTML).join('')}</div>` : `<div class="empty-day"><div class="ei">📋</div><p>No activities.</p></div>`;
+
+  const qt = document.getElementById('mobQuoteText');
+  if(qt) qt.textContent = QUOTES[quoteIdx];
+
+  const mt = document.getElementById('mobMainTitle');
+  if(mt) mt.textContent = selectedDay===now.getDay() ? "Today's Schedule" : `${DAY_FULL[selectedDay]}'s Schedule`;
+}
+
+function getMobileDayTasks() {
+  return window.tasks
+    .filter(t=>t.day===selectedDay && activeFilters.has(t.categoryId))
+    .filter(t=>settings.showCompleted || !t.completed)
+    .sort((a,b)=>a.time.localeCompare(b.time));
+}
+
+function renderMobileWeek() {
+  // Week strip
+  const now   = new Date();
+  const start = new Date(now); start.setDate(now.getDate()-now.getDay());
+  const strip = document.getElementById('mobWeekStrip');
+  if(strip) {
+    strip.innerHTML='';
+    for(let i=0;i<7;i++){
+      const d=new Date(start); d.setDate(start.getDate()+i);
+      const idx=d.getDay();
+      const has=window.tasks.some(t=>t.day===idx);
+      const el=document.createElement('div');
+      el.className=`wd ${idx===selectedDay?'active':''} ${has?'has-tasks':''}`;
+      el.innerHTML=`<span class="wdn">${DAY_S[i]}</span><span class="wdnum">${d.getDate()}</span><span class="wddot"></span>`;
+      el.onclick=()=>{ selectDay(idx); renderMobileWeek(); if(isMobile()) renderMobileSchedule(); };
+      strip.appendChild(el);
+    }
+    const end=new Date(start); end.setDate(end.getDate()+6);
+    const rl = document.getElementById('mobWeekRangeLabel');
+    if(rl) rl.textContent=start.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+end.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  }
+  // Stats
+  const filtered = getMobileDayTasks();
+  const done  = filtered.filter(t=>t.completed).length;
+  const total = filtered.length;
+  const mins  = filtered.reduce((s,t)=>s+t.duration,0);
+  const pct   = total?Math.round(done/total*100):0;
+  const set = (id,val)=>{ const e=document.getElementById(id); if(e) e.textContent=val; };
+  set('mobStatTotal', total);
+  set('mobStatDone',  done);
+  set('mobStatHrs',   mins>=60?`${(mins/60).toFixed(1)}h`:(mins?`${mins}m`:'—'));
+  set('mobPctLbl',    pct+'%');
+  const pf=document.getElementById('mobPfill'); if(pf) pf.style.width=pct+'%';
+  const counts={};
+  filtered.forEach(t=>counts[t.categoryId]=(counts[t.categoryId]||0)+1);
+  const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  set('mobStatTop', top?getCat(top[0]).emoji:'—');
+  // Category filters
+  const cf=document.getElementById('mobCatFilters');
+  if(cf) cf.innerHTML = window.categories.length ? window.categories.map(c=>{
+    const count=window.tasks.filter(t=>t.day===selectedDay&&t.categoryId===c.id).length;
+    const active=activeFilters.has(c.id);
+    return `<div class="cat-filter-item ${active?'active':'inactive'}" onclick="toggleCatFilter('${c.id}',this);renderMobileWeek();renderMobileSchedule();">
+      <div class="cf-dot" style="background:${c.color}"></div>
+      <span class="cf-name">${c.emoji} ${c.name}</span>
+      <span class="cf-count">${count}</span>
+    </div>`;
+  }).join('') : '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--muted);padding:8px;">No categories yet.</div>';
+}
+
+function syncMobileForm() {
+  // Sync category dropdown with current categories
+  const sel = document.getElementById('mobFCategory');
+  if(!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Select category —</option>' +
+    window.categories.map(c=>`<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');
+  if(prev) sel.value = prev;
+  // Set default day to today
+  const fd = document.getElementById('mobFDay');
+  if(fd) fd.value = new Date().getDay();
+}
+
+async function addTaskMobile() {
+  const title    = document.getElementById('mobFTitle').value.trim();
+  const time     = document.getElementById('mobFTime').value;
+  const day      = parseInt(document.getElementById('mobFDay').value);
+  const duration = parseInt(document.getElementById('mobFDuration').value);
+  const priority = document.getElementById('mobFPriority').value;
+  const catId    = document.getElementById('mobFCategory').value;
+  const note     = document.getElementById('mobFNote').value.trim();
+  if(!title)  { showToast('Please enter an activity name','error'); return; }
+  if(!catId)  { showToast('Please select a category','error'); return; }
+  const btn = document.getElementById('mobBtnAddTask');
+  btn.disabled=true; btn.textContent='Saving…';
+  try {
+    await window.dbAddTask({ title, time, day, duration, priority, categoryId:catId, note, completed:false, createdAt:Date.now() });
+    document.getElementById('mobFTitle').value='';
+    document.getElementById('mobFNote').value='';
+    showToast('Activity saved ☁️','success');
+    if(selectedDay!==day) selectDay(day);
+    switchMobileView('schedule');
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+  btn.disabled=false; btn.textContent='+ Add to Schedule';
+}
+
+// Patch renderAll to also update mobile views
+const _origRenderAll = renderAll;
+function renderAll() {
+  _origRenderAll();
+  if(isMobile()) {
+    renderMobileSchedule();
+    syncMobileForm();
+  }
+}
+
+// Patch switchTimelineView to handle both desktop and mobile containers
+const _origSwitchTL = switchTimelineView;
+function switchTimelineView(v) {
+  tlView = v;
+  // Desktop
+  const tc=document.getElementById('timelineContainer');
+  const lc=document.getElementById('listContainer');
+  if(tc) tc.style.display=v==='timeline'?'':'none';
+  if(lc) lc.style.display=v==='list'?'':'none';
+  document.getElementById('vbtnTimeline')?.classList.toggle('active',v==='timeline');
+  document.getElementById('vbtnList')?.classList.toggle('active',v==='list');
+  // Mobile
+  const mtc=document.getElementById('mobTimelineContainer');
+  const mlc=document.getElementById('mobListContainer');
+  if(mtc) mtc.style.display=v==='timeline'?'':'none';
+  if(mlc) mlc.style.display=v==='list'?'':'none';
+  document.getElementById('mobVbtnTimeline')?.classList.toggle('active',v==='timeline');
+  document.getElementById('mobVbtnList')?.classList.toggle('active',v==='list');
+}
+
+// On load: if mobile, show mobile schedule by default
+window.addEventListener('load', ()=>{
+  if(isMobile()) {
+    setTimeout(()=>{
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      document.querySelectorAll('.mob-panel').forEach(p=>{ p.style.display='none'; });
+      const s=document.getElementById('mob-view-schedule');
+      if(s){ s.style.display='block'; s.classList.add('active'); }
+    }, 300);
+  }
+});
 document.getElementById('deleteModal').addEventListener('click',e=>{ if(e.target===e.currentTarget) closeModal(); });
+document.getElementById('editCatModal').addEventListener('click',e=>{ if(e.target===e.currentTarget) closeEditCat(); });
 </script>
 </body>
 </html>
